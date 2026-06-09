@@ -13,6 +13,7 @@ function App() {
   const [nombre, setNombre] = useState("");
   const [precio, setPrecio] = useState("");
   const [stock, setStock] = useState("");
+  const [editandoId, setEditandoId] = useState<number | null>(null);
 
   const cargarProductos = () => {
     api.get("/productos").then((res) => setProductos(res.data));
@@ -22,17 +23,41 @@ function App() {
     cargarProductos();
   }, []);
 
-  const crearProducto = async (e: React.FormEvent) => {
+  const guardarProducto = async (e: React.FormEvent) => {
     e.preventDefault();
-    await api.post("/productos", {
+    const productoData = {
       nombre,
       precio: parseFloat(precio),
       stock: parseInt(stock),
-    });
+    };
+
+    if (editandoId) {
+      // Editar (enviamos el ID junto con los datos)
+      await api.post("/productos", { ...productoData, id: editandoId });
+    } else {
+      // Crear
+      await api.post("/productos", productoData);
+    }
+
     setNombre("");
     setPrecio("");
     setStock("");
+    setEditandoId(null);
     cargarProductos();
+  };
+
+  const prepararEdicion = (p: Producto) => {
+    setEditandoId(p.id);
+    setNombre(p.nombre);
+    setPrecio(p.precio.toString());
+    setStock(p.stock.toString());
+  };
+
+  const cancelarEdicion = () => {
+    setEditandoId(null);
+    setNombre("");
+    setPrecio("");
+    setStock("");
   };
 
   const eliminarProducto = async (id: number) => {
@@ -42,9 +67,9 @@ function App() {
 
   return (
     <div style={{ padding: "40px", maxWidth: "600px", margin: "auto" }}>
-      <h1>CRUD de Productos</h1>
+      <h1>{editandoId ? "Editar Producto" : "CRUD de Productos"}</h1>
 
-      <form onSubmit={crearProducto} style={{ marginBottom: "20px" }}>
+      <form onSubmit={guardarProducto} style={{ marginBottom: "20px" }}>
         <input
           placeholder="Nombre"
           value={nombre}
@@ -65,7 +90,16 @@ function App() {
           onChange={(e) => setStock(e.target.value)}
           required
         />
-        <button type="submit">Agregar</button>
+        <button type="submit">{editandoId ? "Actualizar" : "Agregar"}</button>
+        {editandoId && (
+          <button
+            type="button"
+            onClick={cancelarEdicion}
+            style={{ marginLeft: "10px" }}
+          >
+            Cancelar
+          </button>
+        )}
       </form>
 
       <table border={1} style={{ width: "100%", textAlign: "left" }}>
@@ -84,7 +118,13 @@ function App() {
               <td>${p.precio}</td>
               <td>{p.stock}</td>
               <td>
-                <button onClick={() => eliminarProducto(p.id)}>Borrar</button>
+                <button onClick={() => prepararEdicion(p)}>Editar</button>
+                <button
+                  onClick={() => eliminarProducto(p.id)}
+                  style={{ marginLeft: "5px" }}
+                >
+                  Borrar
+                </button>
               </td>
             </tr>
           ))}
